@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Calculator</title>
+    <!-- Google Fonts: Inter for clean Android-style numeric typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #FFFFFF;
+            color: #1A1A1A;
+            margin: 0;
+            padding: 0;
+            height: 100dvh;
+            width: 100vw;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        /* Blinking blue cursor matching the screenshot */
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        .cursor-blink {
+            display: inline-block;
+            width: 2px;
+            height: 1.15em;
+            background-color: #1D63DC;
+            margin-left: 2px;
+            vertical-align: middle;
+            animation: blink 1.1s infinite;
+        }
+
+        /* Subtle ripple / press effect on keypad buttons */
+        .calc-btn {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            transition: background-color 0.12s ease, transform 0.08s ease;
+            border-radius: 9999px;
+        }
+
+        .calc-btn:active {
+            background-color: rgba(0, 0, 0, 0.06);
+            transform: scale(0.95);
+        }
+
+        .calc-btn-blue {
+            color: #1D63DC;
+        }
+
+        .calc-btn-blue:active {
+            background-color: rgba(29, 99, 220, 0.1);
+        }
+
+        /* Tall Royal Blue Equals Button */
+        .equals-btn {
+            background-color: #1D63DC;
+            color: #FFFFFF;
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(29, 99, 220, 0.22);
+            transition: background-color 0.15s ease, transform 0.08s ease;
+        }
+
+        .equals-btn:active {
+            background-color: #1651B8;
+            transform: scale(0.96);
+        }
+
+        /* Hide scrollbars in display area while allowing horizontal scroll for long numbers */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* History drawer transition */
+        .history-panel {
+            transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+    </style>
+</head>
+<body class="flex flex-col justify-between bg-white">
+
+    <!-- Main App Wrapper -->
+    <div id="appContainer" class="relative flex flex-col w-full h-full max-w-4xl mx-auto bg-white overflow-hidden">
+
+        <!-- Top Toolbar (Adapts between Portrait Basic & Scientific/Landscape) -->
+        <header id="topBar" class="flex items-center justify-between px-5 pt-4 pb-1 shrink-0 z-10">
+            <!-- Left Icons (Shown in Scientific Mode, matching screenshot 1) -->
+            <div id="leftControls" class="hidden items-center gap-5">
+                <button onclick="toggleScientificMode()" title="Basic Mode" class="p-2 -ml-2 rounded-full text-[#1A1A1A] active:bg-gray-100 transition">
+                    <!-- +/- Icon matching screenshot 1 top-left -->
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="5" x2="5" y2="19"></line>
+                        <line x1="7" y1="4" x2="7" y2="10"></line>
+                        <line x1="4" y1="7" x2="10" y2="7"></line>
+                        <line x1="14" y1="17" x2="20" y2="17"></line>
+                    </svg>
+                </button>
+                <button onclick="toggleHistory()" title="History" class="p-2 rounded-full text-[#1A1A1A] active:bg-gray-100 transition">
+                    <!-- History Icon matching screenshot -->
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                        <path d="M3 3v5h5"></path>
+                        <path d="M12 7v5l3 2"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Spacer when in Basic Mode -->
+            <div id="leftSpacer" class="flex-1"></div>
+
+            <!-- Right Icons (Shown in Basic Mode, matching screenshot 2) -->
+            <div id="rightControls" class="flex items-center gap-5">
+                <button onclick="toggleScientificMode()" title="Scientific Mode" class="p-2 rounded-full text-[#1A1A1A] active:bg-gray-100 transition">
+                    <!-- √x Icon matching screenshot 2 top-right -->
+                    <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 13l3.5 6L11 5h10"></path>
+                        <path d="M14.5 11.5l5 5"></path>
+                        <path d="M19.5 11.5l-5 5"></path>
+                    </svg>
+                </button>
+                <button onclick="toggleHistory()" title="History" class="p-2 -mr-2 rounded-full text-[#1A1A1A] active:bg-gray-100 transition">
+                    <!-- History Icon matching screenshot -->
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                        <path d="M3 3v5h5"></path>
+                        <path d="M12 7v5l3 2"></path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Display Screen Area -->
+        <section id="displayArea" class="relative flex-1 flex flex-col justify-end px-6 pb-3 min-h-[110px]">
+            <!-- Expression Input Row (Right Aligned + Blinking Blue Cursor) -->
+            <div id="expressionWrapper" class="w-full overflow-x-auto no-scrollbar text-right whitespace-nowrap flex items-center justify-end min-h-[56px]">
+                <span id="expressionText" class="text-[42px] sm:text-[48px] font-light tracking-tight text-[#1A1A1A] leading-tight"></span>
+                <span class="cursor-blink" id="blinkingCursor"></span>
+            </div>
+
+            <!-- Live Result Preview Row -->
+            <div class="w-full flex items-end justify-between mt-1 min-h-[30px]">
+                <!-- DEG / RAD indicator on bottom-left in Scientific Mode (Screenshot 1) -->
+                <span id="angleIndicator" class="hidden text-xs font-medium tracking-wider text-gray-400 uppercase pb-1">DEG</span>
+                <div id="previewText" class="ml-auto text-right text-[22px] font-light text-gray-400 truncate max-w-full"></div>
+            </div>
+        </section>
+
+        <!-- Subtle Gray Handle / Divider Pill (Matches both screenshots) -->
+        <div onclick="toggleScientificMode()" class="w-full flex justify-center py-2 cursor-pointer shrink-0">
+            <div class="w-8 h-1 rounded-full bg-gray-300"></div>
+        </div>
+
+        <!-- Keypad Grid Container -->
+        <main id="keypadGrid" class="grid grid-cols-4 gap-1 px-3 pb-4 pt-1 h-[62%] max-h-[540px] shrink-0">
+            <!-- Dynamically populated by JavaScript for seamless Basic <-> Scientific transitions -->
+        </main>
+
+        <!-- Slide-Up Calculation History Drawer -->
+        <div id="historyDrawer" class="history-panel fixed inset-0 z-30 bg-white flex flex-col translate-y-full">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleHistory()" class="p-2 -ml-2 rounded-full text-gray-700 active:bg-gray-100">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 12H5"></path>
+                            <path d="M12 19l-7-7 7-7"></path>
+                        </svg>
+                    </button>
+                    <h2 class="text-lg font-medium text-gray-800">History</h2>
+                </div>
+                <button onclick="clearHistory()" id="clearHistoryBtn" class="text-sm font-medium text-[#1D63DC] px-3 py-1.5 rounded-full active:bg-blue-50">
+                    Clear
+                </button>
+            </div>
+
+            <div id="historyList" class="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+                <!-- History items injected here -->
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        /**
+         * Mobile Offline Calculator Logic
+         * Replicates native Android calculator layout, scientific functions,
+         * live preview, and persistent offline history.
+         */
+
+        // Application State
+        let expression = '';
+        let isScientific = false;
+        let isInv = false;
+        let angleMode = 'DEG'; // 'DEG' or 'RAD'
+        let justEvaluated = false;
+        let history = [];
+
+        // Load saved history from localStorage for offline persistence
+        try {
+            const saved = localStorage.getItem('offline_calc_history');
+            if (saved) history = JSON.parse(saved);
+        } catch (e) {
+            history = [];
+        }
+
+        // DOM Elements
+        const keypadGrid = document.getElementById('keypadGrid');
+        const expressionText = document.getElementById('expressionText');
+        const expressionWrapper = document.getElementById('expressionWrapper');
+        const previewText = document.getElementById('previewText');
+        const leftControls = document.getElementById('leftControls');
+        const rightControls = document.getElementById('rightControls');
+        const leftSpacer = document.getElementById('leftSpacer');
+        const angleIndicator = document.getElementById('angleIndicator');
+        const historyDrawer = document.getElementById('historyDrawer');
+        const historyList = document.getElementById('historyList');
+
+        /**
+         * Render Keypad based on Basic (4 cols) or Scientific (7 cols) mode
+         */
+        function renderKeypad() {
+            keypadGrid.innerHTML = '';
+
+            if (!isScientific) {
+                // BASIC MODE (4 Columns x 5 Rows - matches Screenshot 2)
+                keypadGrid.className = 'grid grid-cols-4 grid-rows-5 gap-1 px-3 pb-5 pt-1 h-[62%] max-h-[540px] shrink-0';
+                leftControls.classList.add('hidden');
+                leftControls.classList.remove('flex');
+                leftSpacer.classList.remove('hidden');
+                rightControls.classList.remove('hidden');
+                rightControls.classList.add('flex');
+                angleIndicator.classList.add('hidden');
+
+                const basicButtons = [
+                    // Row 1
+                    { label: 'C', type: 'blue', action: () => clearAll() },
+                    { label: '÷', type: 'blue', action: () => appendOperator('÷') },
+                    { label: '×', type: 'blue', action: () => appendOperator('×') },
+                    { label: 'backspace', type: 'blue', isIcon: true, action: () => backspace() },
+                    // Row 2
+                    { label: '7', type: 'num', action: () => appendValue('7') },
+                    { label: '8', type: 'num', action: () => appendValue('8') },
+                    { label: '9', type: 'num', action: () => appendValue('9') },
+                    { label: '−', type: 'blue', action: () => appendOperator('−') },
+                    // Row 3
+                    { label: '4', type: 'num', action: () => appendValue('4') },
+                    { label: '5', type: 'num', action: () => appendValue('5') },
+                    { label: '6', type: 'num', action: () => appendValue('6') },
+                    { label: '+', type: 'blue', action: () => appendOperator('+') },
+                    // Row 4
+                    { label: '1', type: 'num', action: () => appendValue('1') },
+                    { label: '2', type: 'num', action: () => appendValue('2') },
+                    { label: '3', type: 'num', action: () => appendValue('3') },
+                    { label: '=', type: 'equals', spanRows: true, action: () => evaluateExpression() },
+                    // Row 5
+                    { label: '%', type: 'num', action: () => appendOperator('%') },
+                    { label: '0', type: 'num', action: () => appendValue('0') },
+                    { label: '.', type: 'num', action: () => appendDecimal() }
+                ];
+
+                basicButtons.forEach(btn => createButtonElement(btn, false));
+            } else {
+                // SCIENTIFIC MODE (7 Columns x 5 Rows - matches Screenshot 1)
+                keypadGrid.className = 'grid grid-cols-7 grid-rows-5 gap-x-1 gap-y-0.5 px-3 pb-3 pt-1 h-[64%] max-h-[420px] shrink-0';
+                leftControls.classList.remove('hidden');
+                leftControls.classList.add('flex');
+                leftSpacer.classList.add('hidden');
+                rightControls.classList.add('hidden');
+                rightControls.classList.remove('flex');
+                angleIndicator.classList.remove('hidden');
+                angleIndicator.textContent = angleMode;
+
+                const sciButtons = [
+                    // Row 1
+                    { label: 'INV', type: 'sci', active: isInv, action: () => toggleInv() },
+                    { label: angleMode === 'DEG' ? 'RAD' : 'DEG', type: 'sci', action: () => toggleAngleMode() },
+                    { label: 'x!', type: 'sci', action: () => appendOperator('!') },
+                    { label: 'C', type: 'blue', action: () => clearAll() },
+                    { label: '÷', type: 'blue', action: () => appendOperator('÷') },
+                    { label: '×', type: 'blue', action: () => appendOperator('×') },
+                    { label: 'backspace', type: 'blue', isIcon: true, action: () => backspace() },
+
+                    // Row 2
+                    { label: isInv ? 'sin⁻¹' : 'sin', type: 'sci', action: () => appendFunction(isInv ? 'sin⁻¹(' : 'sin(') },
+                    { label: isInv ? 'cos⁻¹' : 'cos', type: 'sci', action: () => appendFunction(isInv ? 'cos⁻¹(' : 'cos(') },
+                    { label: isInv ? 'tan⁻¹' : 'tan', type: 'sci', action: () => appendFunction(isInv ? 'tan⁻¹(' : 'tan(') },
+                    { label: '7', type: 'num', action: () => appendValue('7') },
+                    { label: '8', type: 'num', action: () => appendValue('8') },
+                    { label: '9', type: 'num', action: () => appendValue('9') },
+                    { label: '−', type: 'blue', action: () => appendOperator('−') },
+
+                    // Row 3
+                    { label: isInv ? 'eˣ' : 'ln', type: 'sci', action: () => appendFunction(isInv ? 'e^(' : 'ln(') },
+                    { label: isInv ? '10ˣ' : 'log', type: 'sci', action: () => appendFunction(isInv ? '10^(' : 'log(') },
+                    { label: isInv ? 'ʸ√x' : 'xʸ', type: 'sci', action: () => appendOperator(isInv ? 'ʸ√' : '^') },
+                    { label: '4', type: 'num', action: () => appendValue('4') },
+                    { label: '5', type: 'num', action: () => appendValue('5') },
+                    { label: '6', type: 'num', action: () => appendValue('6') },
+                    { label: '+', type: 'blue', action: () => appendOperator('+') },
+
+                    // Row 4
+                    { label: 'π', type: 'sci', action: () => appendValue('π') },
+                    { label: 'e', type: 'sci', action: () => appendValue('e') },
+                    { label: '√', type: 'sci', action: () => appendFunction('√(') },
+                    { label: '1', type: 'num', action: () => appendValue('1') },
+                    { label: '2', type: 'num', action: () => appendValue('2') },
+                    { label: '3', type: 'num', action: () => appendValue('3') },
+                    { label: '=', type: 'equals', spanRows: true, action: () => evaluateExpression() },
+
+                    // Row 5
+                    { label: '(', type: 'sci', action: () => appendValue('(') },
+                    { label: ')', type: 'sci', action: () => appendValue(')') },
+                    { label: 'x²', type: 'sci', action: () => appendOperator('^2') },
+                    { label: '%', type: 'num', action: () => appendOperator('%') },
+                    { label: '0', type: 'num', action: () => appendValue('0') },
+                    { label: '.', type: 'num', action: () => appendDecimal() }
+                ];
+
+                sciButtons.forEach(btn => createButtonElement(btn, true));
+            }
+        }
+
+        /**
+         * Helper to construct individual keypad button DOM nodes
+         */
+        function createButtonElement(btn, compact) {
+            const button = document.createElement('button');
+            button.type = 'button';
+
+            if (btn.type === 'equals') {
+                button.className = 'equals-btn row-span-2 flex items-center justify-center text-3xl font-normal my-1 mx-1.5';
+                button.textContent = '=';
+            } else {
+                let textSize = compact
+                    ? (btn.type === 'sci' ? 'text-[15px] sm:text-[17px]' : 'text-[22px] sm:text-[25px]')
+                    : 'text-[28px] sm:text-[32px]';
+
+                let colorClass = btn.type === 'blue'
+                    ? 'calc-btn-blue font-normal'
+                    : (btn.active ? 'text-[#1D63DC] font-semibold bg-blue-50/70' : 'text-[#1A1A1A] font-normal');
+
+                button.className = `calc-btn ${textSize} ${colorClass} w-full h-full`;
+
+                if (btn.isIcon && btn.label === 'backspace') {
+                    // Exact outlined backspace tag icon with 'x' inside (matches screenshots)
+                    button.innerHTML = `
+                        <svg width="${compact ? 22 : 26}" height="${compact ? 22 : 26}" viewBox="0 0 24 24" fill="none" stroke="#1D63DC" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path>
+                            <line x1="18" y1="9" x2="12" y2="15"></line>
+                            <line x1="12" y1="9" x2="18" y2="15"></line>
+                        </svg>
+                    `;
+                } else {
+                    button.textContent = btn.label;
+                }
+            }
+
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                btn.action();
+            });
+
+            keypadGrid.appendChild(button);
+        }
+
+        /**
+         * Input Handlers
+         */
+        function appendValue(val) {
+            if (justEvaluated) {
+                // Start fresh if typing a number after pressing '='
+                if (/[0-9πe(]/.test(val)) {
+                    expression = '';
+                }
+                justEvaluated = false;
+            }
+
+            // Implicit multiplication when placing constant/parenthesis right after a number or ')'
+            if (/[πe(]/.test(val) && expression.length > 0 && /[0-9πe)%!]/.test(expression.slice(-1))) {
+                expression += '×' + val;
+            } else if (/[0-9]/.test(val) && expression.length > 0 && /[πe)!]/.test(expression.slice(-1))) {
+                expression += '×' + val;
+            } else {
+                // Prevent multiple leading zeros like 00
+                if (expression === '0' && val === '0') return;
+                if (expression === '0' && /[1-9]/.test(val)) {
+                    expression = val;
+                } else {
+                    expression += val;
+                }
+            }
+
+            updateDisplay();
+        }
+
+        function appendFunction(fn) {
+            if (justEvaluated) {
+                expression = '';
+                justEvaluated = false;
+            }
+            if (expression.length > 0 && /[0-9πe)%!]/.test(expression.slice(-1))) {
+                expression += '×' + fn;
+            } else {
+                expression += fn;
+            }
+            updateDisplay();
+        }
+
+        function appendOperator(op) {
+            justEvaluated = false;
+
+            if (expression === '' && op !== '−') return;
+
+            const lastChar = expression.slice(-1);
+            const binaryOps = ['+', '−', '×', '÷', '^'];
+
+            if (binaryOps.includes(op)) {
+                if (binaryOps.includes(lastChar)) {
+                    // Replace consecutive binary operators
+                    expression = expression.slice(0, -1) + op;
+                } else {
+                    expression += op;
+                }
+            } else {
+                // Postfix operators like %, !, ^2
+                if (expression !== '' && !binaryOps.includes(lastChar) && lastChar !== '(') {
+                    expression += op;
+                }
+            }
+
+            updateDisplay();
+        }
+
+        function appendDecimal() {
+            if (justEvaluated) {
+                expression = '0.';
+                justEvaluated = false;
+                updateDisplay();
+                return;
+            }
+
+            // Check current number segment to avoid double decimals (e.g. 1.2.3)
+            const parts = expression.split(/[+\−×÷^()]/);
+            const currentNum = parts[parts.length - 1];
+            if (currentNum.includes('.')) return;
+
+            if (currentNum === '' || /[πe)!%]/.test(expression.slice(-1))) {
+                if (/[πe)!%]/.test(expression.slice(-1))) {
+                    expression += '×0.';
+                } else {
+                    expression += '0.';
+                }
+            } else {
+                expression += '.';
+            }
+
+            updateDisplay();
+        }
+
+        function backspace() {
+            justEvaluated = false;
+            if (expression.length === 0) return;
+
+            // Remove multi-character tokens cleanly if at the end
+            const multiTokens = ['sin⁻¹(', 'cos⁻¹(', 'tan⁻¹(', 'sin(', 'cos(', 'tan(', 'log(', 'ln(', '10^(', 'e^(', '√(', 'ʸ√'];
+            for (const token of multiTokens) {
+                if (expression.endsWith(token)) {
+                    expression = expression.slice(0, -token.length);
+                    updateDisplay();
+                    return;
+                }
+            }
+
+            expression = expression.slice(0, -1);
+            updateDisplay();
+        }
+
+        function clearAll() {
+            expression = '';
+            previewText.textContent = '';
+            justEvaluated = false;
+            updateDisplay();
+        }
+
+        /**
+         * Mode & Angle Toggles
+         */
+        function toggleScientificMode() {
+            isScientific = !isScientific;
+            renderKeypad();
+        }
+
+        function toggleInv() {
+            isInv = !isInv;
+            renderKeypad();
+        }
+
+        function toggleAngleMode() {
+            angleMode = angleMode === 'DEG' ? 'RAD' : 'DEG';
+            angleIndicator.textContent = angleMode;
+            renderKeypad();
+            updateDisplay();
+        }
+
+        /**
+         * Safe Mathematical Expression Evaluator
+         */
+        function calculateResult(rawExpr) {
+            if (!rawExpr || rawExpr.trim() === '') return null;
+
+            try {
+                let expr = rawExpr;
+
+                // Auto-close unclosed parentheses for live preview
+                const openParens = (expr.match(/\(/g) || []).length;
+                const closeParens = (expr.match(/\)/g) || []).length;
+                if (openParens > closeParens) {
+                    expr += ')'.repeat(openParens - closeParens);
+                }
+
+                // Trim trailing binary operators for clean live preview
+                expr = expr.replace(/[+\−×÷^]+$/, '');
+                if (!expr) return null;
+
+                // Replace visual math symbols with JS equivalents
+                expr = expr
+                    .replace(/×/g, '*')
+                    .replace(/÷/g, '/')
+                    .replace(/−/g, '-')
+                    .replace(/π/g, `(${Math.PI})`)
+                    .replace(/\be\b/g, `(${Math.E})`);
+
+                // Handle percentage: convert N% to (N/100)
+                expr = expr.replace(/(\d+(?:\.\d+)?|\([^()]+\))%/g, '($1/100)');
+
+                // Handle factorial: N!
+                expr = expr.replace(/(\d+(?:\.\d+)?|\([^()]+\))!/g, 'factorial($1)');
+
+                // Handle nth root: a ʸ√ b -> Math.pow(b, 1/a)
+                expr = expr.replace(/(\d+(?:\.\d+)?|\([^()]+\))ʸ√(\d+(?:\.\d+)?|\([^()]+\))/g, 'Math.pow($2, 1/($1))');
+
+                // Handle square root √(
+                expr = expr.replace(/√\(/g, 'Math.sqrt(');
+
+                // Handle logarithms
+                expr = expr.replace(/ln\(/g, 'Math.log(');
+                expr = expr.replace(/log\(/g, 'Math.log10(');
+
+                // Handle trigonometric & inverse trigonometric functions
+                expr = expr.replace(/sin⁻¹\(/g, 'invSin(');
+                expr = expr.replace(/cos⁻¹\(/g, 'invCos(');
+                expr = expr.replace(/tan⁻¹\(/g, 'invTan(');
+                expr = expr.replace(/sin\(/g, 'trigSin(');
+                expr = expr.replace(/cos\(/g, 'trigCos(');
+                expr = expr.replace(/tan\(/g, 'trigTan(');
+
+                // Handle exponentiation ^
+                expr = expr.replace(/\^/g, '**');
+
+                // Helper math functions scoped inside evaluator
+                const toRad = (deg) => deg * (Math.PI / 180);
+                const toDeg = (rad) => rad * (180 / Math.PI);
+
+                const trigSin = (x) => {
+                    const val = angleMode === 'DEG' ? Math.sin(toRad(x)) : Math.sin(x);
+                    return Math.abs(val) < 1e-12 ? 0 : val;
+                };
+                const trigCos = (x) => {
+                    const val = angleMode === 'DEG' ? Math.cos(toRad(x)) : Math.cos(x);
+                    return Math.abs(val) < 1e-12 ? 0 : val;
+                };
+                const trigTan = (x) => {
+                    if (angleMode === 'DEG' && Math.abs(x % 180) === 90) throw new Error('Undefined');
+                    const val = angleMode === 'DEG' ? Math.tan(toRad(x)) : Math.tan(x);
+                    return Math.abs(val) < 1e-12 ? 0 : val;
+                };
+
+                const invSin = (x) => angleMode === 'DEG' ? toDeg(Math.asin(x)) : Math.asin(x);
+                const invCos = (x) => angleMode === 'DEG' ? toDeg(Math.acos(x)) : Math.acos(x);
+                const invTan = (x) => angleMode === 'DEG' ? toDeg(Math.atan(x)) : Math.atan(x);
+
+                const factorial = (n) => {
+                    if (n < 0 || !Number.isInteger(n) || n > 170) throw new Error('Invalid factorial');
+                    if (n === 0 || n === 1) return 1;
+                    let res = 1;
+                    for (let i = 2; i <= n; i++) res *= i;
+                    return res;
+                };
+
+                // Evaluate safely
+                const fn = new Function(
+                    'trigSin', 'trigCos', 'trigTan', 'invSin', 'invCos', 'invTan', 'factorial',
+                    `"use strict"; return (${expr});`
+                );
+
+                const result = fn(trigSin, trigCos, trigTan, invSin, invCos, invTan, factorial);
+
+                if (typeof result !== 'number' || !isFinite(result) || isNaN(result)) {
+                    return null;
+                }
+
+                // Format floating point precision issues (e.g. 0.1 + 0.2 = 0.3)
+                const rounded = Math.round(result * 1e10) / 1e10;
+                return rounded.toString();
+            } catch (e) {
+                return null;
+            }
+        }
+
+        /**
+         * Format numbers with subtle comma separators for readability
+         */
+        function formatNumberDisplay(str) {
+            if (!str) return '';
+            // Add commas to integer parts of numbers while keeping operators intact
+            return str.replace(/\d+(\.\d+)?/g, (match) => {
+                if (match.includes('e')) return match;
+                const parts = match.split('.');
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                return parts.join('.');
+            });
+        }
+
+        /**
+         * Update Display Screen & Live Preview
+         */
+        function updateDisplay() {
+            const formattedExpr = formatNumberDisplay(expression);
+            expressionText.textContent = formattedExpr;
+
+            // Dynamically scale font size for long expressions
+            const len = formattedExpr.length;
+            if (len > 16) {
+                expressionText.className = 'text-[26px] sm:text-[32px] font-light tracking-tight text-[#1A1A1A] leading-tight';
+            } else if (len > 11) {
+                expressionText.className = 'text-[34px] sm:text-[40px] font-light tracking-tight text-[#1A1A1A] leading-tight';
+            } else {
+                expressionText.className = 'text-[42px] sm:text-[48px] font-light tracking-tight text-[#1A1A1A] leading-tight';
+            }
+
+            // Auto-scroll right so cursor is always visible
+            expressionWrapper.scrollLeft = expressionWrapper.scrollWidth;
+
+            // Show live calculation preview only if expression has an operator/function
+            const hasOperator = /[+\−×÷^%!√sincoagln]/.test(expression);
+            if (hasOperator && !justEvaluated) {
+                const liveRes = calculateResult(expression);
+                previewText.textContent = liveRes !== null ? formatNumberDisplay(liveRes) : '';
+            } else {
+                previewText.textContent = '';
+            }
+        }
+
+        /**
+         * Final Evaluation when '=' is pressed
+         */
+        function evaluateExpression() {
+            if (!expression) return;
+
+            const result = calculateResult(expression);
+            if (result === null) {
+                previewText.textContent = 'Format error';
+                previewText.classList.add('text-red-500');
+                setTimeout(() => previewText.classList.remove('text-red-500'), 1200);
+                return;
+            }
+
+            // Save to history if an actual calculation occurred
+            if (expression !== result) {
+                history.unshift({
+                    expr: expression,
+                    res: result,
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                });
+                if (history.length > 50) history.pop();
+                try {
+                    localStorage.setItem('offline_calc_history', JSON.stringify(history));
+                } catch (e) {}
+            }
+
+            expression = result;
+            previewText.textContent = '';
+            justEvaluated = true;
+            updateDisplay();
+        }
+
+        /**
+         * History Drawer Controls
+         */
+        function toggleHistory() {
+            const isOpen = !historyDrawer.classList.contains('translate-y-full');
+            if (isOpen) {
+                historyDrawer.classList.add('translate-y-full');
+            } else {
+                renderHistoryList();
+                historyDrawer.classList.remove('translate-y-full');
+            }
+        }
+
+        function renderHistoryList() {
+            if (history.length === 0) {
+                historyList.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-gray-400 py-20">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mb-2 opacity-60">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                            <path d="M3 3v5h5"></path>
+                            <path d="M12 7v5l3 2"></path>
+                        </svg>
+                        <p class="text-sm">No calculation history</p>
+                    </div>
+                `;
+                return;
+            }
+
+            historyList.innerHTML = history.map((item, idx) => `
+                <div onclick="useHistoryItem(${idx})" class="text-right py-2 px-3 rounded-xl active:bg-gray-50 cursor-pointer transition">
+                    <div class="text-base text-gray-500 break-all">${formatNumberDisplay(item.expr)}</div>
+                    <div class="text-2xl font-normal text-[#1D63DC] mt-0.5">= ${formatNumberDisplay(item.res)}</div>
+                </div>
+            `).join('');
+        }
+
+        function useHistoryItem(index) {
+            const item = history[index];
+            if (!item) return;
+            expression = item.res;
+            justEvaluated = false;
+            updateDisplay();
+            toggleHistory();
+        }
+
+        function clearHistory() {
+            history = [];
+            try {
+                localStorage.removeItem('offline_calc_history');
+            } catch (e) {}
+            renderHistoryList();
+        }
+
+        /**
+         * Automatic Orientation Detection (Portrait = Basic, Landscape = Scientific)
+         */
+        function handleOrientationChange() {
+            const isLandscape = window.innerWidth > window.innerHeight && window.innerWidth >= 560;
+            if (isLandscape && !isScientific) {
+                isScientific = true;
+                renderKeypad();
+            } else if (!isLandscape && isScientific && window.innerWidth < 560) {
+                isScientific = false;
+                renderKeypad();
+            }
+        }
+
+        window.addEventListener('resize', handleOrientationChange);
+
+        /**
+         * Physical Keyboard Support (for desktop testing as well)
+         */
+        document.addEventListener('keydown', (e) => {
+            if (e.key >= '0' && e.key <= '9') appendValue(e.key);
+            else if (e.key === '.') appendDecimal();
+            else if (e.key === '+') appendOperator('+');
+            else if (e.key === '-') appendOperator('−');
+            else if (e.key === '*') appendOperator('×');
+            else if (e.key === '/') { e.preventDefault(); appendOperator('÷'); }
+            else if (e.key === '%') appendOperator('%');
+            else if (e.key === '(' || e.key === ')') appendValue(e.key);
+            else if (e.key === 'Enter' || e.key === '=') { e.preventDefault(); evaluateExpression(); }
+            else if (e.key === 'Backspace') backspace();
+            else if (e.key === 'Escape' || e.key.toLowerCase() === 'c') clearAll();
+        });
+
+        // Initial Render
+        handleOrientationChange();
+        renderKeypad();
+        updateDisplay();
+    </script>
+</body>
+</html>
